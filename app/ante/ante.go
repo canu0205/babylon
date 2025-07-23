@@ -17,6 +17,7 @@ import (
 	errortypes "github.com/cosmos/cosmos-sdk/types/errors"
 	authante "github.com/cosmos/cosmos-sdk/x/auth/ante"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	"github.com/cosmos/evm/ante"
 	anteinterfaces "github.com/cosmos/evm/ante/interfaces"
 	ibckeeper "github.com/cosmos/ibc-go/v10/modules/core/keeper"
 )
@@ -52,7 +53,7 @@ func NewAnteHandler(
 				BankKeeper:      bankKeeper,
 				SignModeHandler: signModeHandler,
 				FeegrantKeeper:  feegrantKeeper,
-				SigGasConsumer:  authante.DefaultSigVerificationGasConsumer,
+				SigGasConsumer:  ante.SigVerificationGasConsumer,
 				// CheckTxFeeWithGlobalMinGasPrices will enforce the global minimum
 				// gas price for all transactions.
 				TxFeeChecker: CheckTxFeeWithGlobalMinGasPrices,
