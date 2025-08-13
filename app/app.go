@@ -984,6 +984,7 @@ func getAppMempool(appOpts servertypes.AppOptions) mempool.Mempool {
 		mempoolCfg = mempool.DefaultPriorityNonceMempoolConfig()
 	)
 	mempoolCfg.MaxTx = maxTxs
+	mempoolCfg.SignerExtractor = NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter())
 	mp = mempool.NewPriorityMempool(mempoolCfg)
 	if maxTxs < 0 {
 		mp = mempool.NoOpMempool{}
