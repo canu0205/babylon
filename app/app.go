@@ -586,8 +586,9 @@ func NewBabylonApp(
 	)
 
 	// set proposal extension
+	ethSignerExtractor := NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter())
 	proposalHandler := prepare.NewProposalHandler(
-		logger, &app.CheckpointingKeeper, bApp.Mempool(), bApp, app.EncCfg)
+		logger, &app.CheckpointingKeeper, bApp.Mempool(), bApp, app.EncCfg, ethSignerExtractor)
 	proposalHandler.SetHandlers(bApp)
 
 	// set vote extension

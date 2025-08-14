@@ -45,8 +45,10 @@ func NewProposalHandler(
 	mp mempool.Mempool,
 	bApp *baseapp.BaseApp,
 	encCfg sdktestutil.TestEncodingConfig,
+	signerExtractor mempool.SignerExtractionAdapter,
 ) *ProposalHandler {
 	defaultHandler := baseapp.NewDefaultProposalHandler(mp, bApp)
+	defaultHandler.SetSignerExtractionAdapter(signerExtractor)
 	ckpttypes.RegisterInterfaces(encCfg.InterfaceRegistry)
 
 	return &ProposalHandler{
