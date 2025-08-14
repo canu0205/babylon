@@ -57,6 +57,7 @@ func CheckTxFeeWithGlobalMinGasPrices(ctx sdk.Context, tx sdk.Tx) (sdk.Coins, in
 	}
 
 	priority := getTxPriority(feeTx.GetFee(), int64(gas))
+	fmt.Printf("cosmos tx priority: %d\n", priority)
 	return feeTx.GetFee(), priority, nil
 }
 

@@ -331,6 +331,7 @@ replace (
 	cosmossdk.io/core => cosmossdk.io/core v0.11.3
 	// use cosmos fork of keyring
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
+	github.com/cosmos/evm => ../evm
 	github.com/ethereum/go-ethereum => github.com/cosmos/go-ethereum v1.15.11-cosmos-0
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/strangelove-ventures/tokenfactory => github.com/babylonlabs-io/tokenfactory v0.50.6-wasmvm2
