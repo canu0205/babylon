@@ -12,9 +12,12 @@ import (
 	"cosmossdk.io/store"
 	storemetrics "cosmossdk.io/store/metrics"
 	storetypes "cosmossdk.io/store/types"
+
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
+
 	"github.com/cosmos/cosmos-sdk/runtime"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/babylonlabs-io/babylon/v4/x/incentive/types"
@@ -154,7 +157,7 @@ func (a *CollectionsTransientApproach) EndBlockCleanup(ctx context.Context) {
 	// Transient store automatically cleans up
 }
 
-// 4. collections.KeySet with default KVStore approach
+// 4. baseline: collections.KeySet with default KVStore approach
 type CollectionsKVStoreApproach struct {
 	refundableMsgKeySet collections.KeySet[[]byte]
 }
@@ -206,6 +209,35 @@ func (a *CollectionsKVStoreApproach) EndBlockCleanup(ctx context.Context) {
 	// current implementation doesn't clean-up at refunabld msg at the endblock
 }
 
+// 5. eliminate cross-module communication
+func CheckTxAndClearIndex(ctx sdk.Context, msgHash [][]byte) bool {
+	if !isRefundTx(msgHash) {
+		return false
+	}
+
+	msgHashes := make(map[string]struct{})
+	for _, msg := range msgHash {
+		hash := string(msg)
+		if _, exists := msgHashes[hash]; exists {
+			return false
+		}
+		msgHashes[hash] = struct{}{}
+	}
+	return true
+}
+
+// isRefundTx returns true if ALL its messages are refundable
+func isRefundTx(msgHash [][]byte) bool {
+	if len(msgHash) == 0 {
+		return false
+	}
+
+	for _, _ = range msgHash {
+		continue
+	}
+	return true
+}
+
 func generateDummyMsgHashes(count int) [][]byte {
 	hashes := make([][]byte, count)
 	for i := 0; i < count; i++ {
@@ -222,7 +254,7 @@ func setupSDKContext() (sdk.Context, *storetypes.TransientStoreKey, *storetypes.
 	tKey := storetypes.NewTransientStoreKey("test_transient")
 	kvKey := storetypes.NewKVStoreKey("test_kv")
 
-	cms.MountStoreWithDB(tKey, storetypes.StoreTypeTransient, nil)
+	cms.MountStoreWithDB(tKey, storetypes.StoreTypeTransient, db)
 	cms.MountStoreWithDB(kvKey, storetypes.StoreTypeIAVL, db)
 	err := cms.LoadLatestVersion()
 	if err != nil {
@@ -278,19 +310,28 @@ func benchmarkRefundableKVApproach(b *testing.B, approachFunc func(*storetypes.K
 	}
 }
 
+func benchmarkSimpleApproach(b *testing.B, _ func(*storetypes.TransientStoreKey) RefundableApproach, msgCount int) {
+	ctx, _, _ := setupSDKContext()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		msgHashes := generateDummyMsgHashes(msgCount)
+
+		CheckTxAndClearIndex(ctx, msgHashes)
+	}
+}
+
 // Benchmarks for different message counts
 func BenchmarkInMemoryMap_10msgs(b *testing.B) {
 	benchmarkRefundableApproach(b, func(tKey *storetypes.TransientStoreKey) RefundableApproach {
 		return NewInMemoryMapApproach()
 	}, 10)
 }
-
 func BenchmarkInMemoryMap_100msgs(b *testing.B) {
 	benchmarkRefundableApproach(b, func(tKey *storetypes.TransientStoreKey) RefundableApproach {
 		return NewInMemoryMapApproach()
 	}, 100)
 }
-
 func BenchmarkInMemoryMap_1000msgs(b *testing.B) {
 	benchmarkRefundableApproach(b, func(tKey *storetypes.TransientStoreKey) RefundableApproach {
 		return NewInMemoryMapApproach()
@@ -302,13 +343,11 @@ func BenchmarkTransientStore_10msgs(b *testing.B) {
 		return NewTransientStoreApproach(tKey)
 	}, 10)
 }
-
 func BenchmarkTransientStore_100msgs(b *testing.B) {
 	benchmarkRefundableApproach(b, func(tKey *storetypes.TransientStoreKey) RefundableApproach {
 		return NewTransientStoreApproach(tKey)
 	}, 100)
 }
-
 func BenchmarkTransientStore_1000msgs(b *testing.B) {
 	benchmarkRefundableApproach(b, func(tKey *storetypes.TransientStoreKey) RefundableApproach {
 		return NewTransientStoreApproach(tKey)
@@ -320,13 +359,11 @@ func BenchmarkCollectionsTransient_10msgs(b *testing.B) {
 		return NewCollectionsTransientApproach(tKey)
 	}, 10)
 }
-
 func BenchmarkCollectionsTransient_100msgs(b *testing.B) {
 	benchmarkRefundableApproach(b, func(tKey *storetypes.TransientStoreKey) RefundableApproach {
 		return NewCollectionsTransientApproach(tKey)
 	}, 100)
 }
-
 func BenchmarkCollectionsTransient_1000msgs(b *testing.B) {
 	benchmarkRefundableApproach(b, func(tKey *storetypes.TransientStoreKey) RefundableApproach {
 		return NewCollectionsTransientApproach(tKey)
@@ -338,15 +375,23 @@ func BenchmarkCollectionsKVStore_10msgs(b *testing.B) {
 		return NewCollectionsKVStoreApproach(kvKey)
 	}, 10)
 }
-
 func BenchmarkCollectionsKVStore_100msgs(b *testing.B) {
 	benchmarkRefundableKVApproach(b, func(kvKey *storetypes.KVStoreKey) RefundableApproach {
 		return NewCollectionsKVStoreApproach(kvKey)
 	}, 100)
 }
-
 func BenchmarkCollectionsKVStore_1000msgs(b *testing.B) {
 	benchmarkRefundableKVApproach(b, func(kvKey *storetypes.KVStoreKey) RefundableApproach {
 		return NewCollectionsKVStoreApproach(kvKey)
 	}, 1000)
+}
+
+func BenchmarkSimple_10msgs(b *testing.B) {
+	benchmarkSimpleApproach(b, nil, 10)
+}
+func BenchmarkSimple_100msgs(b *testing.B) {
+	benchmarkSimpleApproach(b, nil, 100)
+}
+func BenchmarkSimple_1000msgs(b *testing.B) {
+	benchmarkSimpleApproach(b, nil, 1000)
 }
